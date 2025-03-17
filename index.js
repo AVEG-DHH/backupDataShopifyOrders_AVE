@@ -21,7 +21,7 @@ const backupDataCJ = async () => {
     // await getCustomerShopyfiEtsohome();
 };
 
-cron.schedule("49 9 * * *", backupDataCJ, {
+cron.schedule("15 0 * * *", backupDataCJ, {
     timezone: "Asia/Ho_Chi_Minh",
 });
 
