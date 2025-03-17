@@ -1,6 +1,7 @@
 require("dotenv").config();
 
 const getOrderShopyfiEtsohome = require('./src/functions/getOrderShopyfiEtsohome');
+const getCustomerShopyfiEtsohome = require("./src/functions/getCustomerShopyfiEtsohome");
 
 const express = require('express');
 const cron = require("node-cron");
@@ -14,11 +15,13 @@ app.use(express.json());
 
 const backupDataCJ = async () => {
     console.log("Now time update!");
-    console.log("--------Etsohome Shopify--------");
+    console.log("--------Etsohome Shopify Orders --------");
     await getOrderShopyfiEtsohome();
+    // console.log("--------Etsohome Shopify Customer--------");
+    // await getCustomerShopyfiEtsohome();
 };
 
-cron.schedule("15 0 * * *", backupDataCJ, {
+cron.schedule("49 9 * * *", backupDataCJ, {
     timezone: "Asia/Ho_Chi_Minh",
 });
 

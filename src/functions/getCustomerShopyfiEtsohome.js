@@ -1,42 +1,30 @@
 const axios = require('axios');
 const refreshTokenLark = require('../tokens/refreshTokenLark');
 
-let LARK_ACCESS_TOKEN = "t-g2063h0VNYTA4BMX6JFXYF5QQMCWCJL3Z2NVDMO7";
+let LARK_ACCESS_TOKEN = "";
 let listPrimary = [];
 let listNew = [];
 let listUpdate = [];
 
-const getFirstDayOfLastMonth = () => {
-    let now = new Date();
-    let year = now.getFullYear();
-    let month = now.getMonth(); // Tháng hiện tại (0-based, tức là 0 = Tháng 1)
+const callAPICustomerEtsohome = async () => {
+    const shopifyAPI = `https://${process.env.SHOPIFY_STORE_ETSOHOME}/admin/api/2025-01/customers.json`;
+    let allcustomers = [];
+    let createdAtMin = new Date();
+    createdAtMin.setMonth(createdAtMin.getMonth() - 1);
+    createdAtMin.setDate(1);
+    createdAtMin.setHours(0, 0, 0, 0);
+    createdAtMin = createdAtMin.toISOString();
 
-    if (month === 0) { // Nếu đang là tháng 1, lùi về tháng 12 năm trước
-        year -= 1;
-        month = 11;
-    } else {
-        month -= 1;
-    }
-
-    // Tạo ngày đầu tháng trước (ISO 8601 format)
-    return new Date(year, month, 1).toISOString();
-};
-
-const callAPIOrderEtsohome = async () => {
-    const shopifyAPI = `https://${process.env.SHOPIFY_STORE_ETSOHOME}/admin/api/2025-01/orders.json`;
-    let allOrders = [];
-    let createdAtMin = getFirstDayOfLastMonth();
     let hasMore = true;
 
     try {
         while (hasMore) {
-            console.log(allOrders.length);
+            console.log(allcustomers.length);
             const response = await axios.get(shopifyAPI, {
                 params: {
                     limit: 250,
-                    status: "any",
-                    created_at_min: createdAtMin,  // Lấy từ ngày cũ nhất
-                    order: "created_at asc", // Sắp xếp theo ngày tăng dần
+                    created_at_min: createdAtMin,
+                    order: "created_at asc",
                 },
                 headers: {
                     "X-Shopify-Access-Token": process.env.SHOPIFY_ACCESS_TOKEN_ETSOHOME,
@@ -44,24 +32,24 @@ const callAPIOrderEtsohome = async () => {
                 },
             });
 
-            const orders = response.data.orders;
-            if (orders.length > 0) {
-                allOrders = allOrders.concat(orders);
+            const customers = response.data.customers;
+            if (customers.length > 0) {
+                allcustomers = allcustomers.concat(customers);
 
                 // Lấy created_at của đơn cuối cùng và cộng thêm 1 giây để tránh trùng lặp
-                let lastCreatedAt = new Date(orders[orders.length - 1].created_at);
+                let lastCreatedAt = new Date(customers[customers.length - 1].created_at);
                 createdAtMin = new Date(lastCreatedAt.getTime() + 1000).toISOString();
 
-                console.log(`📌 Đang lấy đơn hàng từ: ${createdAtMin}`);
+                console.log(`📌 Đang lấy danh sách khách hàng từ: ${createdAtMin}`);
             } else {
-                hasMore = false; // Không còn đơn hàng nào nữa
+                hasMore = false;
             }
 
         }
 
-        return allOrders;
+        return allcustomers;
     } catch (error) {
-        console.error("Lỗi khi lấy toàn bộ đơn hàng:", error.response?.data || error.message);
+        console.error("Lỗi khi lấy danh sách khách hàng:", error.response?.data || error.message);
         return [];
     }
 };
@@ -94,7 +82,6 @@ const getDataLarkBase = async () => {
 
         return allDataLB;
     } catch (error) {
-        console.error("Lỗi khi lấy dữ liệu từ Lark Base:", error.response?.data || error.message);
         // 📌 Nếu token hết hạn (code: 99991663), lấy token mới rồi thử lại
         if (error.response?.data?.code === 99991663 || error.response?.data?.code === 99991661 || error.response?.data?.code === 99991668) {
             LARK_ACCESS_TOKEN = await refreshTokenLark();
@@ -320,13 +307,20 @@ const modelDataOrdersLarkBaseUpdate = (order) => {
     }
 }
 
-const getOrderShopyfiEtsohome = async () => {
-    listPrimary = await callAPIOrderEtsohome();
+const getCustomerShopyfiEtsohome = async () => {
+    listPrimary = await callAPICustomerEtsohome();
+    
     const listDataLarkBase = await getDataLarkBase();
+
+    console.log("Primary: ", listPrimary.length);
+    console.log("LarkBase: ", listDataLarkBase.length);
+
+    return;
 
     await getDataNewUpdate(listPrimary, listDataLarkBase);
 
     // Add record data New
+    console.log("New: ", listNew.length);
     if (listNew.length > 0) {
         for (var j = 0; j < listNew.length; j++) {
             let data = listNew[j];
@@ -336,6 +330,7 @@ const getOrderShopyfiEtsohome = async () => {
     }
 
     // Update record data
+    console.log("Update: ", listUpdate.length);
     if (listUpdate.length > 0) {
         for (var k = 0; k < listUpdate.length; k++) {
             let data = listUpdate[k];
@@ -343,8 +338,6 @@ const getOrderShopyfiEtsohome = async () => {
             await updateDataEtsohome(modelDataOrdersLarkBaseUpdate(data));
         }
     }
-    console.log("New: ", listNew.length);
-    console.log("Update: ", listUpdate.length);
 };
 
-module.exports = getOrderShopyfiEtsohome;
+module.exports = getCustomerShopyfiEtsohome;
