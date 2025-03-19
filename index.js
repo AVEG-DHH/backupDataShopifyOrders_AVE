@@ -25,6 +25,10 @@ cron.schedule("15 0 * * *", backupDataCJ, {
     timezone: "Asia/Ho_Chi_Minh",
 });
 
+cron.schedule("15 12 * * *", backupDataCJ, {
+    timezone: "Asia/Ho_Chi_Minh",
+});
+
 // Start server
 app.listen(port, () => {
     console.log(`Server is running on port ${port}`);

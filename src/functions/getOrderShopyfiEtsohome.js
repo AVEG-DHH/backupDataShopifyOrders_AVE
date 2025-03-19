@@ -330,7 +330,6 @@ const getOrderShopyfiEtsohome = async () => {
     if (listNew.length > 0) {
         for (var j = 0; j < listNew.length; j++) {
             let data = listNew[j];
-            console.log("New: ...", j, " - ", data.id);
             await addDataEtsohome(data);
         }
     }
@@ -339,12 +338,14 @@ const getOrderShopyfiEtsohome = async () => {
     if (listUpdate.length > 0) {
         for (var k = 0; k < listUpdate.length; k++) {
             let data = listUpdate[k];
-            console.log("Update: ...", k, " - ", data.id);
             await updateDataEtsohome(modelDataOrdersLarkBaseUpdate(data));
         }
     }
+
     console.log("New: ", listNew.length);
+    console.log("New object: ", listNew[0]);
     console.log("Update: ", listUpdate.length);
+    console.log("Update object: ", listUpdate[0]);
 };
 
 module.exports = getOrderShopyfiEtsohome;
