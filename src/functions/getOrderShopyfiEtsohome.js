@@ -156,7 +156,7 @@ const getDataNewUpdate = async (listPrimary, listDataLarkBase) => {
         for (let j = 0; j < listDataLarkBase.length; j++) {
             let dataLarkBase = modelDataOrdersLarkBase(listDataLarkBase[j]);
 
-            if (dataLarkBase.fields.id == datalistPrimary.id) {
+            if (String(dataLarkBase.fields.id).trim() == String(datalistPrimary.id).trim()) {
 
                 let keysToCheck = ["financial_status", "fulfillment_status"];
 
@@ -341,11 +341,8 @@ const getOrderShopyfiEtsohome = async () => {
             await updateDataEtsohome(modelDataOrdersLarkBaseUpdate(data));
         }
     }
-
     console.log("New: ", listNew.length);
-    console.log("New object: ", listNew[0]);
     console.log("Update: ", listUpdate.length);
-    console.log("Update object: ", listUpdate[0]);
 };
 
 module.exports = getOrderShopyfiEtsohome;
