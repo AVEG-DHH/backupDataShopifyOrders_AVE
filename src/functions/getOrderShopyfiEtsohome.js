@@ -128,7 +128,6 @@ const addDataEtsohome = async (data) => {
 
 const updateDataEtsohome = async (data) => {
     const LARK_API = `https://open.larksuite.com/open-apis/bitable/v1/apps/${process.env.LARK_APP_TOKEN_ORDERS_ETSOHOME}/tables/${process.env.LARK_TABLE_ID_ORDERS_ETSOHOME}/records/${data.record_id}`;
-
     try {
         await axios.put(
             LARK_API,
@@ -151,24 +150,36 @@ const updateDataEtsohome = async (data) => {
 
 const getDataNewUpdate = async (listPrimary, listDataLarkBase) => {
     for (let i = 0; i < listPrimary.length; i++) {
-        let datalistPrimary = listPrimary[i];
-
+        let datalistPrimary = modelDataOrders(listPrimary[i]);
         for (let j = 0; j < listDataLarkBase.length; j++) {
             let dataLarkBase = modelDataOrdersLarkBase(listDataLarkBase[j]);
 
             if (String(dataLarkBase.fields.id).trim() == String(datalistPrimary.id).trim()) {
-
-                let keysToCheck = ["financial_status", "fulfillment_status"];
-
-                let hasChanged = keysToCheck.some(key => {
-                    let larkValue = String(dataLarkBase.fields[key] || "unfulfilled");
-                    let primaryValue = String(datalistPrimary[key] || "unfulfilled");
-                    return larkValue !== primaryValue;
-                });
-
-                if (hasChanged) {
+                if (datalistPrimary.total_price !== dataLarkBase.fields.total_price
+                    || datalistPrimary.subtotal_price !== dataLarkBase.fields.subtotal_price
+                    || datalistPrimary.total_tax !== dataLarkBase.fields.total_tax
+                    || datalistPrimary.total_discounts !== dataLarkBase.fields.total_discounts
+                    || datalistPrimary.shipping_price !== dataLarkBase.fields.shipping_price
+                    || datalistPrimary.financial_status !== dataLarkBase.fields.financial_status
+                    || datalistPrimary.fulfillment_status !== dataLarkBase.fields.fulfillment_status
+                    || datalistPrimary.payment_status !== dataLarkBase.fields.payment_status
+                    || datalistPrimary.refund_amount !== dataLarkBase.fields.refund_amount) {
                     listUpdate.push({ ...datalistPrimary, record_id: dataLarkBase.record_id });
-                };
+                }
+                // let keysToCheck = [
+                //     "total_price", "subtotal_price", "total_tax", "total_discounts", "shipping_price",
+                //     "financial_status", "fulfillment_status", "payment_status", "refund_amount",
+                // ];
+
+                // let hasChanged = keysToCheck.some(key => {
+                //     let larkValue = String(dataLarkBase.fields[key] || "unfulfilled");
+                //     let primaryValue = String(datalistPrimary[key] || "unfulfilled");
+                //     return larkValue !== primaryValue;
+                // });
+
+                // if (hasChanged) {
+                //     listUpdate.push({ ...datalistPrimary, record_id: dataLarkBase.record_id });
+                // };
                 break;
             };
 
@@ -186,10 +197,10 @@ const modelDataOrders = (order) => {
         created_at: order.created_at || "",
         financial_status: order.financial_status || "",
         fulfillment_status: order.fulfillment_status || "unfulfilled",
-        total_price: order.total_price ? parseFloat(order.total_price) : 0,
-        subtotal_price: order.subtotal_price ? parseFloat(order.subtotal_price) : 0,
-        total_tax: order.total_tax ? parseFloat(order.total_tax) : 0,
-        total_discounts: order.total_discounts ? parseFloat(order.total_discounts) : 0,
+        total_price: order.financial_status == "refunded" ? parseFloat(order.total_price) : parseFloat(order.current_total_price),
+        subtotal_price: order.financial_status == "refunded" ? parseFloat(order.subtotal_price) : parseFloat(order.current_subtotal_price),
+        total_tax: order.financial_status == "refunded" ? parseFloat(order.total_tax) : parseFloat(order.current_total_tax),
+        total_discounts: order.financial_status == "refunded" ? parseFloat(order.total_discounts) : parseFloat(order.current_total_discounts),
         shipping_price: order.total_shipping_price_set?.shop_money?.amount
             ? parseFloat(order.total_shipping_price_set.shop_money.amount)
             : 0,
@@ -205,24 +216,28 @@ const modelDataOrders = (order) => {
         customer_email: order.customer?.email || "",
         customer_name: `${order.customer?.first_name || ""} ${order.customer?.last_name || ""}`.trim(),
         customer_tags: order.customer?.tags || "",
-        line_items: order.line_items
+        line_items: Array.isArray(order.line_items)
             ? order.line_items.map(item => item.name).join(", ")
             : "",
-        product_ids: order.line_items?.length
+
+        product_ids: Array.isArray(order.line_items)
             ? order.line_items
-                .filter(item => item.product_id) // Loại bỏ các item có product_id là null
+                .filter(item => item.product_id) // Loại bỏ item có product_id là null
                 .map(item => item.product_id.toString())
                 .join(", ")
             : "",
-        variant_ids: order.line_items?.length
+
+        variant_ids: Array.isArray(order.line_items)
             ? order.line_items
-                .filter(item => item.variant_id) // Loại bỏ các item có variant_id là null
+                .filter(item => item.variant_id) // Loại bỏ item có variant_id là null
                 .map(item => item.variant_id.toString())
                 .join(", ")
             : "",
-        total_quantity: order.line_items
-            ? order.line_items.reduce((sum, item) => sum + item.quantity, 0)
+
+        total_quantity: Array.isArray(order.line_items)
+            ? order.line_items.reduce((sum, item) => sum + (item.quantity || 0), 0)
             : 0,
+
         discount_codes: order.discount_codes
             ? order.discount_codes.map(code => code.code).join(", ")
             : "",
@@ -241,9 +256,7 @@ const modelDataOrdersLarkBase = (order) => {
             subtotal_price: order.fields.subtotal_price ? parseFloat(order.fields.subtotal_price) : 0,
             total_tax: order.fields.total_tax ? parseFloat(order.fields.total_tax) : 0,
             total_discounts: order.fields.total_discounts ? parseFloat(order.fields.total_discounts) : 0,
-            shipping_price: order.fields.total_shipping_price_set?.shop_money?.amount
-                ? parseFloat(order.fields.total_shipping_price_set.shop_money.amount)
-                : 0,
+            shipping_price: order.fields.shipping_price ? parseFloat(order.fields.shipping_price) : 0,
             currency: order.fields.currency || "",
             source_name: order.fields.source_name || "",
             gateway: order.fields.gateway || "",
@@ -270,51 +283,30 @@ const modelDataOrdersLarkBase = (order) => {
 const modelDataOrdersLarkBaseUpdate = (order) => {
     return {
         fields: {
-            id: order.id.toString(),
-            order_number: order.order_number.toString(),
-            created_at: order.created_at || "",
-            financial_status: order.financial_status || "",
-            fulfillment_status: order.fulfillment_status || "unfulfilled",
-            total_price: order.total_price ? parseFloat(order.total_price) : 0,
-            subtotal_price: order.subtotal_price ? parseFloat(order.subtotal_price) : 0,
-            total_tax: order.total_tax ? parseFloat(order.total_tax) : 0,
-            total_discounts: order.total_discounts ? parseFloat(order.total_discounts) : 0,
-            shipping_price: order.total_shipping_price_set?.shop_money?.amount
-                ? parseFloat(order.total_shipping_price_set.shop_money.amount)
-                : 0,
-            currency: order.currency || "",
-            source_name: order.source_name || "",
-            gateway: order.gateway || "",
-            payment_status: order.financial_status || "",
-            refund_amount: order.refunds
-                ? order.refunds.reduce((sum, refund) =>
-                    sum + parseFloat(refund.transactions?.[0]?.amount || 0), 0)
-                : 0,
-            customer_id: order.customer?.id ? order.customer.id.toString() : "",
-            customer_email: order.customer?.email || "",
-            customer_name: `${order.customer?.first_name || ""} ${order.customer?.last_name || ""}`.trim(),
-            customer_tags: order.customer?.tags || "",
-            line_items: order.line_items
-                ? order.line_items.map(item => item.name).join(", ")
-                : "",
-            product_ids: order.line_items?.length
-                ? order.line_items
-                    .filter(item => item.product_id) // Loại bỏ các item có product_id là null
-                    .map(item => item.product_id.toString())
-                    .join(", ")
-                : "",
-            variant_ids: order.line_items?.length
-                ? order.line_items
-                    .filter(item => item.variant_id) // Loại bỏ các item có variant_id là null
-                    .map(item => item.variant_id.toString())
-                    .join(", ")
-                : "",
-            total_quantity: order.line_items
-                ? order.line_items.reduce((sum, item) => sum + item.quantity, 0)
-                : 0,
-            discount_codes: order.discount_codes
-                ? order.discount_codes.map(code => code.code).join(", ")
-                : "",
+            id: order.id,
+            order_number: order.order_number,
+            created_at: order.created_at,
+            financial_status: order.financial_status,
+            fulfillment_status: order.fulfillment_status,
+            total_price: order.total_price,
+            subtotal_price: order.subtotal_price,
+            total_tax: order.total_tax,
+            total_discounts: order.total_discounts,
+            shipping_price: order.shipping_price,
+            currency: order.currency,
+            source_name: order.source_name,
+            gateway: order.gateway,
+            payment_status: order.financial_status,
+            refund_amount: order.refund_amount,
+            customer_id: order.customer_id,
+            customer_email: order.customer_email,
+            customer_name: order.customer_name,
+            customer_tags: order.customer_tags,
+            line_items: order.line_items,
+            product_ids: order.product_ids,
+            variant_ids: order.variant_ids,
+            total_quantity: order.total_quantity,
+            discount_codes: order.discount_codes,
         },
         record_id: order.record_id,
     }
@@ -325,11 +317,14 @@ const getOrderShopyfiEtsohome = async () => {
     const listDataLarkBase = await getDataLarkBase();
 
     await getDataNewUpdate(listPrimary, listDataLarkBase);
+    console.log("New: ", listNew.length);
+    console.log("Update: ", listUpdate.length);
 
-    // Add record data New
+    // // Add record data New
     if (listNew.length > 0) {
         for (var j = 0; j < listNew.length; j++) {
             let data = listNew[j];
+            console.log("Data new: ", j + " - " + data.id);
             await addDataEtsohome(data);
         }
     }
@@ -338,11 +333,11 @@ const getOrderShopyfiEtsohome = async () => {
     if (listUpdate.length > 0) {
         for (var k = 0; k < listUpdate.length; k++) {
             let data = listUpdate[k];
+            console.log("Data update: ", k + " - " + data.id);
             await updateDataEtsohome(modelDataOrdersLarkBaseUpdate(data));
         }
     }
-    console.log("New: ", listNew.length);
-    console.log("Update: ", listUpdate.length);
+
 };
 
 module.exports = getOrderShopyfiEtsohome;
