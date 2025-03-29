@@ -163,23 +163,10 @@ const getDataNewUpdate = async (listPrimary, listDataLarkBase) => {
                     || datalistPrimary.financial_status !== dataLarkBase.fields.financial_status
                     || datalistPrimary.fulfillment_status !== dataLarkBase.fields.fulfillment_status
                     || datalistPrimary.payment_status !== dataLarkBase.fields.payment_status
-                    || datalistPrimary.refund_amount !== dataLarkBase.fields.refund_amount) {
+                    || datalistPrimary.refund_amount !== dataLarkBase.fields.refund_amount
+                ) {
                     listUpdate.push({ ...datalistPrimary, record_id: dataLarkBase.record_id });
                 }
-                // let keysToCheck = [
-                //     "total_price", "subtotal_price", "total_tax", "total_discounts", "shipping_price",
-                //     "financial_status", "fulfillment_status", "payment_status", "refund_amount",
-                // ];
-
-                // let hasChanged = keysToCheck.some(key => {
-                //     let larkValue = String(dataLarkBase.fields[key] || "unfulfilled");
-                //     let primaryValue = String(datalistPrimary[key] || "unfulfilled");
-                //     return larkValue !== primaryValue;
-                // });
-
-                // if (hasChanged) {
-                //     listUpdate.push({ ...datalistPrimary, record_id: dataLarkBase.record_id });
-                // };
                 break;
             };
 
@@ -238,7 +225,7 @@ const modelDataOrders = (order) => {
             ? order.line_items.reduce((sum, item) => sum + (item.quantity || 0), 0)
             : 0,
 
-        discount_codes: order.discount_codes
+        discount_codes: Array.isArray(order.discount_codes)
             ? order.discount_codes.map(code => code.code).join(", ")
             : "",
     }
