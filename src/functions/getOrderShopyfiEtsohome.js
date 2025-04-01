@@ -151,10 +151,13 @@ const updateDataEtsohome = async (data) => {
 const getDataNewUpdate = async (listPrimary, listDataLarkBase) => {
     for (let i = 0; i < listPrimary.length; i++) {
         let datalistPrimary = modelDataOrders(listPrimary[i]);
+        let found = false;
+
         for (let j = 0; j < listDataLarkBase.length; j++) {
             let dataLarkBase = modelDataOrdersLarkBase(listDataLarkBase[j]);
 
             if (String(dataLarkBase.fields.id).trim() == String(datalistPrimary.id).trim()) {
+                found = true;
                 if (datalistPrimary.total_price !== dataLarkBase.fields.total_price
                     || datalistPrimary.subtotal_price !== dataLarkBase.fields.subtotal_price
                     || datalistPrimary.total_tax !== dataLarkBase.fields.total_tax
@@ -170,7 +173,7 @@ const getDataNewUpdate = async (listPrimary, listDataLarkBase) => {
                 break;
             };
 
-            if (j == listDataLarkBase.length - 1) {
+            if (j == listDataLarkBase.length - 1 && !found) {
                 listNew.push(datalistPrimary);
             }
         };
