@@ -302,13 +302,72 @@ const modelDataOrdersLarkBaseUpdate = (order) => {
     }
 }
 
+const checkDuplicateOrderIds = (dataList) => {
+    const seenOrderIds = new Map();
+    const duplicates = [];
+
+    dataList.forEach((item) => {
+        const orderId = item.fields.id;
+        const recordId = item.record_id;
+
+        if (seenOrderIds.has(orderId)) {
+            // Nếu đã từng thấy rồi => thêm bản ghi mới vào danh sách duplicates
+            duplicates.push({ orderId, record_id: recordId });
+        } else {
+            // Nếu chưa thấy => đánh dấu là đã thấy
+            seenOrderIds.set(orderId, true);
+        }
+    });
+
+    return duplicates;
+};
+
+const deleteRecord = async (recordId) => {
+    try {
+        const res = await axios.delete(
+            `https://open.larksuite.com/open-apis/bitable/v1/apps/${process.env.LARK_APP_TOKEN_ORDERS_ETSOHOME}/tables/${process.env.LARK_TABLE_ID_ORDERS_ETSOHOME}/records/${recordId}`,
+            {
+                headers: {
+                    Authorization: `Bearer ${LARK_ACCESS_TOKEN}`,
+                    'Content-Type': 'application/json',
+                }
+            }
+        );
+
+        console.log("Xoá thành công:", res.data);
+    } catch (err) {
+        // 📌 Nếu token hết hạn (code: 99991663), lấy token mới rồi thử lại
+        if (error.response?.data?.code === 99991663 || error.response?.data?.code === 99991661 || error.response?.data?.code === 99991668) {
+            LARK_ACCESS_TOKEN = await refreshTokenLark();
+            return deleteRecord();
+        }
+        throw error;
+    }
+};
+
+const deleteReocrdLark = async () => {
+    let arrLarkBaseDataDelete = await getDataLarkBase();
+    let arrIDUnique = await checkDuplicateOrderIds(arrLarkBaseDataDelete);
+    if (arrIDUnique.length == 0) {
+        console.log("Không có bản ghi nào trùng lặp");
+        return;
+    }
+    for (let index = 0; index < arrIDUnique.length; index++) {
+        const element = arrIDUnique[index];
+        console.log("Xoá bản ghi trùng lặp: ", element);
+        await deleteRecord(element.record_id);
+    }
+    console.log("Xoá bản ghi trùng lặp thành công");
+};
+
 const getOrderShopyfiEtsohome = async () => {
+    await deleteReocrdLark();
+
     listPrimary = await callAPIOrderEtsohome();
     const listDataLarkBase = await getDataLarkBase();
 
     await getDataNewUpdate(listPrimary, listDataLarkBase);
-    console.log("New: ", listNew.length);
-    console.log("Update: ", listUpdate.length);
+
 
     // // Add record data New
     if (listNew.length > 0) {
@@ -328,6 +387,8 @@ const getOrderShopyfiEtsohome = async () => {
         }
     }
 
+    console.log("New: ", listNew.length);
+    console.log("Update: ", listUpdate.length);
 };
 
 module.exports = getOrderShopyfiEtsohome;
